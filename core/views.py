@@ -409,7 +409,9 @@ def index_conditional_case_when(request):
     dates = []
     count = itertools.count()
 
-    while (dt := first_sales + tz.timedelta(days=10 * next(count))) <= last_sales:
+    while (
+        dt := first_sales + tz.timedelta(days=10 * next(count))
+    ) <= last_sales:  # Walrus opertions
         dates.append(dt)
 
     whens = [
