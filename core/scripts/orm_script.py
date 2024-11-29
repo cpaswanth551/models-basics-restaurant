@@ -7,11 +7,6 @@ import random
 
 
 def run():
-    staff, created = Staff.objects.get_or_create(name="Tony Stark")
+    pass
+    
 
-    print(staff)
-
-    staff.restaurants.set(
-        Restaurant.objects.all()[:10],
-        through_defaults={"salary": random.randint(20_000, 80_000)},
-    )

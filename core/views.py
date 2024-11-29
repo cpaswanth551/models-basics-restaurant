@@ -15,8 +15,11 @@ from django.db.models import (
     Q,
     Case,
     When,
+    Subquery,
+    OuterRef,
+    Exists,
 )
-from .forms import RestaurantForm
+from .forms import ProductOrderForm, RestaurantForm
 from core.models import Restaurant, Rating, Sale, Staff, StaffRestaurant
 from django.utils import timezone as tz
 
@@ -430,7 +433,89 @@ def index_conditional_case_when(request):
     return render(request, "index.html", context)
 
 
-def index(request):
+def index_subquery(request):
     context = {}
 
+    sales_ = Sale.objects.filter(restaurant__restaurant_type__in=["CH", "IT"])
+
+    # subquery ..
+
+    rst = Restaurant.objects.filter(restaurant_type__in=["CH", "IT"])
+    sales = Sale.objects.filter(restaurant__in=Subquery(rst.values("pk")))
+    print(len(sales))
+
+    #  restaurant with the icome generated from its most recent sales
+    restaurants = Restaurant.objects.all()
+
+    sales = Sale.objects.filter(restaurant=OuterRef("pk")).order_by("-datetime")
+    restaurants = restaurants.annotate(
+        last_sale_income=Subquery(sales.values("income")[:1])
+    )
+    for r in restaurants:
+        print(f"{r.name}-{r.last_sale_income}")
+
+    # case outer query
+    sales = Sale.objects.filter(restaurant=OuterRef("pk")).order_by("-datetime")
+    restaurants = restaurants.annotate(
+        last_sale_income=Subquery(sales.values("income")[:1]),
+        last_sale_expenditure=Subquery(sales.values("expenditure")[:1]),
+        last_sale_profit=F("last_sale_income") - F("last_sale_expenditure"),
+    )
+    for r in restaurants:
+        print(
+            f"{r.name}->{r.last_sale_income} -> {r.last_sale_expenditure} -> {r.last_sale_profit}"
+        )
+
+    # exists
+
+    # filter to restuarants that have any sales with income > 85
+    restaurants = Restaurant.objects.filter(
+        Exists(Sale.objects.filter(restaurant=OuterRef("pk"), income__gt=90))
+    )
+
+    print(restaurants.count())
+
+    # filter to restuarants that have rating greater than and equal 5
+    restaurants = Restaurant.objects.filter(
+        Exists(Rating.objects.filter(restaurant=OuterRef("pk"), rating=5))
+    )
+
+    # filter to restuarants that have rating not  rating 5
+    restaurants = Restaurant.objects.filter(
+        ~Exists(Rating.objects.filter(restaurant=OuterRef("pk"), rating=5))
+    )
+
+    print(restaurants.count())
+
+    # get all restaurnats with sales in last 5 days
+
+    five_days_ago = tz.now() - tz.timedelta(days=5)
+    sales = Sale.objects.filter(restaurant=OuterRef("pk"), datetime__gte=five_days_ago)
+
+    restaurants = Restaurant.objects.filter(Exists(sales))
+
+    print(restaurants.count())
+
+    return render(request, "index.html", context)
+
+
+def order_product(request):
+    if request.method == "POST":
+        form = ProductOrderForm(request.POST)
+        if form.is_valid():
+            order = form.save()
+            order.product.number_in_stock -= order.number_of_items
+            order.save()
+
+        else:
+            context = {"form": form}
+            return render(request, "order.html", context)
+
+    form = ProductOrderForm()
+    context = {"form": form}
+    return render(request, "order.html", context)
+
+
+def index(request):
+    context = {}
     return render(request, "index.html", context)
