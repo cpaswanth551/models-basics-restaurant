@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 
 
 def validate_restaurant_name_begins_with_a(value):
@@ -35,6 +37,8 @@ class Restaurant(models.Model):
     capacity = models.PositiveSmallIntegerField(null=True, blank=True)
     nickname = models.CharField(max_length=100, null=True, blank=True)
 
+    comments = GenericRelation("Comment", related_query_name="restaurant")
+
     def __str__(self):
         return self.name
 
@@ -51,6 +55,8 @@ class Rating(models.Model):
     rating = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
+
+    comments = GenericRelation("Comment")
 
     def __str__(self):
         return f"Rating: {self.rating}"
@@ -92,4 +98,14 @@ class Product(models.Model):
 
 class Order(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    number_of_items = models.PositiveSmallIntegerField( )
+    number_of_items = models.PositiveSmallIntegerField()
+
+
+class Comment(models.Model):
+    text = models.TextField()
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveSmallIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+    def __str__(self):
+        return self.text

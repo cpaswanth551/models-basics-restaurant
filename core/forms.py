@@ -21,6 +21,7 @@ class ProductOrderForm(forms.ModelForm):
     def save(self, commit=True):
         order = super().save(commit=False)
         if order.product.number_in_stock < order.number_of_items:
+            print('here')
             raise ProductStockException(
                 f"not enough items in stock for product: {order.product}"
             )
